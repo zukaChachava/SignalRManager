@@ -5,7 +5,7 @@ public interface IHubController<TId>
     ICollection<string> this[string group] { get; }
     IConnectedUser? this[TId id] { get; }
     int ActiveUsersCount { get; }
-    string GetClientIdClaim { get; }
+    string? GetClientIdClaim { get; }
     bool ClientExists(TId id);
     bool GroupExists(string group);
     Task AddClientAsync(TId clientId, string connectionId, Type hubContext);

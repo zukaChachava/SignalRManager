@@ -10,4 +10,9 @@
       <ProjectReference Include="..\SimpleZ.SignalRManager.Abstractions\SimpleZ.SignalRManager.Abstractions.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Microsoft.AspNet.SignalR.Core" Version="2.4.3" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
+    </ItemGroup>
+
 </Project>
