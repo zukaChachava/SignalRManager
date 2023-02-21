@@ -4,6 +4,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleZ.SignalRManager.Abst
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleZ.SignalRManager.LocalConnections", "SimpleZ.SignalRManager.LocalConnections\SimpleZ.SignalRManager.LocalConnections.csproj", "{CF9BCEDD-6751-4341-A817-78602BE719DE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Src", "Src", "{1776319A-DBE3-4E87-A929-AB18DE2A8077}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TestApps", "TestApps", "{E3A46909-E36E-4D86-BC4B-E62422DB6F84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalConnectionTest", "LocalConnectionTest\LocalConnectionTest.csproj", "{67D7AE8B-8545-47FE-9309-96ABF35FD6A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +24,14 @@ Global
 		{CF9BCEDD-6751-4341-A817-78602BE719DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CF9BCEDD-6751-4341-A817-78602BE719DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CF9BCEDD-6751-4341-A817-78602BE719DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67D7AE8B-8545-47FE-9309-96ABF35FD6A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67D7AE8B-8545-47FE-9309-96ABF35FD6A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67D7AE8B-8545-47FE-9309-96ABF35FD6A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67D7AE8B-8545-47FE-9309-96ABF35FD6A3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8D95D6B0-D4E0-4AEA-AB48-FDBB45D804F2} = {1776319A-DBE3-4E87-A929-AB18DE2A8077}
+		{CF9BCEDD-6751-4341-A817-78602BE719DE} = {1776319A-DBE3-4E87-A929-AB18DE2A8077}
+		{67D7AE8B-8545-47FE-9309-96ABF35FD6A3} = {E3A46909-E36E-4D86-BC4B-E62422DB6F84}
 	EndGlobalSection
 EndGlobal
