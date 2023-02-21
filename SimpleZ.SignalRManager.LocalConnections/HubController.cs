@@ -3,11 +3,10 @@ using Axion.Collections.Concurrent;
 using SimpleZ.SignalRManager.Abstractions;
 using SimpleZ.SignalRManager.LocalConnections.Exceptions;
 using SimpleZ.SignalRManager.LocalConnections.Models;
-using Exception = System.Exception;
 
 namespace SimpleZ.SignalRManager.LocalConnections;
 
-public class HubController<TId>: IHubController<TId>
+public class HubController<TId> : IHubController<TId>
 {
     private readonly IDictionary<TId, IConnectedUser> _connectedUsers;
     private readonly IDictionary<string, ConcurrentHashSet<string>> _groups;
@@ -17,12 +16,12 @@ public class HubController<TId>: IHubController<TId>
         _connectedUsers = new ConcurrentDictionary<TId, IConnectedUser>();
         _groups = new ConcurrentDictionary<string, ConcurrentHashSet<string>>();
     }
-    
-    public string IdClaimType { get; internal set; } 
+
+    public string? IdClaimType { get; internal set; }
     public bool MultiHubConnection { get; internal set; }
-    
+
     public bool MultiGroupConnection { get; internal set; }
-    
+
 
     public ICollection<string> this[string group] => _groups[group];
 
@@ -38,7 +37,7 @@ public class HubController<TId>: IHubController<TId>
 
     public int ActiveUsersCount => _connectedUsers.Count;
 
-    public string GetClientIdClaim => IdClaimType;
+    public string? GetClientIdClaim => IdClaimType;
 
     public bool ClientExists(TId id) => _connectedUsers.ContainsKey(id);
 
@@ -63,9 +62,29 @@ public class HubController<TId>: IHubController<TId>
         return Task.CompletedTask;
     }
 
-    public Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveClientAsync(TId userId, string connectionId, Type hubContext)
+    public async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveClientAsync(TId userId,
+        string connectionId, Type hubContext)
     {
-        throw new NotImplementedException();
+        IConnectedUser client = _connectedUsers[userId];
+        var groups = new ConcurrentStack<(string group, TId userId, string connectionId)>();
+
+        await Task.WhenAll(client.Groups.Keys.Select(group => Task.Run(() => // ToDo: check out this
+        {
+            if (_groups.TryGetValue(group, out var connections) && connections.Contains(connectionId))
+            {
+                groups.Push((group, userId, connectionId));
+                return RemoveClientFromGroupAsync(group, userId, connectionId);
+            }
+
+            return Task.CompletedTask;
+        })));
+
+        client.ConnectionIds.Remove(connectionId); // Deleting connection in UserModel
+
+        if (!client.ConnectionIds.Any())
+            _connectedUsers.Remove(userId); // Deleting connection globally
+
+        return groups;
     }
 
     public Task AddClientToGroupAsync(string group, TId clientId, string connectionId)
@@ -87,21 +106,26 @@ public class HubController<TId>: IHubController<TId>
             return Task.CompletedTask;
         }
 
-        try
-        {
-            _groups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
-            userGroups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
-            return Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            // ToDo: log here
-            throw;
-        }
+        _groups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
+        userGroups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
+        return Task.CompletedTask;
     }
 
     public Task RemoveClientFromGroupAsync(string group, TId clientId, string connectionId)
     {
-        throw new NotImplementedException();
+        if (!_connectedUsers.Keys.Contains(clientId))
+            return Task.CompletedTask; // ToDo: check out this
+            
+        _groups[group].Remove(connectionId);
+        var userGroups = _connectedUsers[clientId].Groups;
+        userGroups[group].Remove(connectionId);
+
+        if (!userGroups[group].Any())
+            userGroups.Remove(group);
+            
+        if (!_groups[group].Any())
+            _groups.Remove(group);
+        
+        return Task.CompletedTask;
     }
 }
