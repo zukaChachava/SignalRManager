@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
-using Microsoft.AspNet.SignalR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using SimpleZ.SignalRManager.Abstractions;
 
 namespace SimpleZ.SignalRManager.LocalConnections;
@@ -19,7 +20,7 @@ public abstract class MapperHub<TId> : Hub
     public Task AddToGroup(string group)
     {
         return Task.WhenAll(
-            Groups.Add(Context.ConnectionId, group),
+            Groups.AddToGroupAsync(Context.ConnectionId, group),
             _hubController.AddClientToGroupAsync(group, GetUserId(), Context.ConnectionId)
         );
     }
@@ -27,23 +28,23 @@ public abstract class MapperHub<TId> : Hub
     public Task RemoveFromGroup(string group)
     {
         return Task.WhenAll(
-            Groups.Remove(Context.ConnectionId, group),
+            Groups.RemoveFromGroupAsync(Context.ConnectionId, group),
             _hubController.RemoveClientFromGroupAsync(group, GetUserId(), Context.ConnectionId)
         );
     }
 
-    public override async Task OnConnected()
+    public override async Task OnConnectedAsync()
     {
         TId id = GetUserId();
-        await base.OnConnected();
+        await base.OnConnectedAsync();
         await _hubController.AddClientAsync(id, Context.ConnectionId, this.GetType());
     }
 
-    public override async Task OnDisconnected(bool stopCalled)
+    public override async Task OnDisconnectedAsync(Exception exception)
     {
         TId id = GetUserId();
         await _hubController.RemoveClientAsync(id, Context.ConnectionId, this.GetType());
-        await base.OnDisconnected(stopCalled);
+        await base.OnDisconnectedAsync(exception);
     }
 
     protected Task AlertGroup(string group, string funcName, string text) =>
@@ -51,12 +52,7 @@ public abstract class MapperHub<TId> : Hub
 
     protected TId GetUserId()
     {
-        if (Context.User.Identity is ClaimsIdentity identity)
-        {
-            var claim = identity.Claims.First(claim => claim.Value == _hubController.GetClientIdClaim);
-            return (TId) Convert.ChangeType(claim.Value, typeof(TId));
-        }
-
-        throw new Exception("User Id not found in claims");
+        return ((TId)Convert.ChangeType(Context.User.FindFirst(_hubController.GetClientIdClaim)?.Value, typeof(TId)))
+               ?? throw new Exception("Can not convert User Claim into User ID");
     }
 }
