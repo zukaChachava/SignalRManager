@@ -1,4 +1,4 @@
-﻿namespace SimpleZ.SignalRManager.LocalConnections.Exceptions;
+﻿namespace SimpleZ.SignalRManager.Abstractions.Exceptions;
 
 public class HubControllerException : Exception
 {

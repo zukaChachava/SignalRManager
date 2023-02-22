@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Axion.Collections.Concurrent;
 using SimpleZ.SignalRManager.Abstractions;
-using SimpleZ.SignalRManager.LocalConnections.Exceptions;
+using SimpleZ.SignalRManager.Abstractions.Exceptions;
 using SimpleZ.SignalRManager.LocalConnections.Models;
 
 namespace SimpleZ.SignalRManager.LocalConnections;
@@ -39,36 +39,35 @@ public class HubController<TId> : IHubController<TId>
 
     public string? GetClientIdClaim => IdClaimType;
 
-    public bool ClientExists(TId id) => _connectedUsers.ContainsKey(id);
+    public Task<bool> ClientExistsAsync(TId id) => Task.FromResult(_connectedUsers.ContainsKey(id));
 
-    public bool GroupExists(string group) => _groups.ContainsKey(group);
+    public Task<bool> GroupExistsAsync(string group) => Task.FromResult(_groups.ContainsKey(group));
 
-    public Task AddClientAsync(TId clientId, string connectionId, Type hubContext)
+    public async Task AddClientAsync(TId userId, string connectionId, Type hubContext)
     {
-        if (ClientExists(clientId))
+        if (await ClientExistsAsync(userId))
         {
             if (!MultiHubConnection &&
-                _connectedUsers[clientId].ConnectionIds.Values.Contains(hubContext))
+                _connectedUsers[userId].ConnectionIds.Values.Contains(hubContext))
                 throw new HubControllerException("User already joined. new connection is not allowed");
 
-            IConnectedUser existingUser = _connectedUsers[clientId];
+            IConnectedUser existingUser = _connectedUsers[userId];
             existingUser.ConnectionIds.TryAdd(connectionId, hubContext);
-            return Task.CompletedTask;
+            return;
         }
 
-        ConnectedUser user = new ConnectedUser();
+        ConnectedUser user = new ConnectedUser(){ ConnectionIds = new ConcurrentDictionary<string, Type>(), Groups = new ConcurrentDictionary<string, ConcurrentHashSet<string>>()};
         user.ConnectionIds.TryAdd(connectionId, hubContext);
-        _connectedUsers.TryAdd(clientId, user);
-        return Task.CompletedTask;
+        _connectedUsers.TryAdd(userId, user);
     }
 
     public async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveClientAsync(TId userId,
         string connectionId, Type hubContext)
     {
-        IConnectedUser client = _connectedUsers[userId];
+        IConnectedUser user = _connectedUsers[userId];
         var groups = new ConcurrentStack<(string group, TId userId, string connectionId)>();
 
-        await Task.WhenAll(client.Groups.Keys.Select(group => Task.Run(() => // ToDo: check out this
+        await Task.WhenAll(user.Groups.Keys.Select(group => Task.Run(() => // ToDo: check out this
         {
             if (_groups.TryGetValue(group, out var connections) && connections.Contains(connectionId))
             {
@@ -79,9 +78,9 @@ public class HubController<TId> : IHubController<TId>
             return Task.CompletedTask;
         })));
 
-        client.ConnectionIds.Remove(connectionId); // Deleting connection in UserModel
+        user.ConnectionIds.Remove(connectionId); // Deleting connection in UserModel
 
-        if (!client.ConnectionIds.Any())
+        if (!user.ConnectionIds.Any())
             _connectedUsers.Remove(userId); // Deleting connection globally
 
         return groups;
@@ -99,7 +98,7 @@ public class HubController<TId> : IHubController<TId>
         {
             _groups[group].Add(connectionId);
             if (userGroups.Keys.Contains(group))
-                userGroups[group].Add(connectionId);
+                userGroups[group].TryAdd(connectionId, out _);
             else
                 userGroups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
 

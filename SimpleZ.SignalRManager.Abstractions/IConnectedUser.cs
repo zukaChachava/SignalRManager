@@ -5,5 +5,5 @@ namespace SimpleZ.SignalRManager.Abstractions;
 public interface IConnectedUser
 {
     IDictionary<string, Type> ConnectionIds { get; set; }
-    IDictionary<string, ConcurrentHashSet<string>> Groups { get; }
+    IDictionary<string, ConcurrentHashSet<string>> Groups { get; set; }
 }

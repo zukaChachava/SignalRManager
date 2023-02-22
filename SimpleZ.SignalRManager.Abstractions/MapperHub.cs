@@ -1,9 +1,7 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using SimpleZ.SignalRManager.Abstractions;
 
-namespace SimpleZ.SignalRManager.LocalConnections;
+namespace SimpleZ.SignalRManager.Abstractions;
 
 [Authorize]
 public abstract class MapperHub<TId> : Hub
@@ -35,8 +33,8 @@ public abstract class MapperHub<TId> : Hub
 
     public override async Task OnConnectedAsync()
     {
-        TId id = GetUserId();
         await base.OnConnectedAsync();
+        TId id = GetUserId();
         await _hubController.AddClientAsync(id, Context.ConnectionId, this.GetType());
     }
 
@@ -52,7 +50,7 @@ public abstract class MapperHub<TId> : Hub
 
     protected TId GetUserId()
     {
-        return ((TId)Convert.ChangeType(Context.User.FindFirst(_hubController.GetClientIdClaim)?.Value, typeof(TId)))
+        return ((TId)Convert.ChangeType(Context.User.FindFirst(_hubController.IdClaimType)?.Value, typeof(TId)))
                ?? throw new Exception("Can not convert User Claim into User ID");
     }
 }
