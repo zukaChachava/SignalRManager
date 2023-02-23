@@ -6,7 +6,7 @@ using SimpleZ.SignalRManager.LocalConnections.Models;
 
 namespace SimpleZ.SignalRManager.LocalConnections;
 
-public class HubController<TId> : IHubController<TId>
+public sealed class HubController<TId> : IHubController<TId>
 {
     private readonly IDictionary<TId, IConnectedUser> _connectedUsers;
     private readonly IDictionary<string, ConcurrentHashSet<string>> _groups;
@@ -39,13 +39,13 @@ public class HubController<TId> : IHubController<TId>
 
     public string? GetClientIdClaim => IdClaimType;
 
-    public Task<bool> ClientExistsAsync(TId id) => Task.FromResult(_connectedUsers.ContainsKey(id));
+    public Task<bool> UserExistsAsync(TId id) => Task.FromResult(_connectedUsers.ContainsKey(id));
 
     public Task<bool> GroupExistsAsync(string group) => Task.FromResult(_groups.ContainsKey(group));
 
-    public async Task AddClientAsync(TId userId, string connectionId, Type hubContext)
+    public async Task AddUserAsync(TId userId, string connectionId, Type hubContext)
     {
-        if (await ClientExistsAsync(userId))
+        if (await UserExistsAsync(userId))
         {
             if (!MultiHubConnection &&
                 _connectedUsers[userId].ConnectionIds.Values.Contains(hubContext))
@@ -61,7 +61,7 @@ public class HubController<TId> : IHubController<TId>
         _connectedUsers.TryAdd(userId, user);
     }
 
-    public async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveClientAsync(TId userId,
+    public async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveUserAsync(TId userId,
         string connectionId, Type hubContext)
     {
         IConnectedUser user = _connectedUsers[userId];
@@ -72,7 +72,7 @@ public class HubController<TId> : IHubController<TId>
             if (_groups.TryGetValue(group, out var connections) && connections.Contains(connectionId))
             {
                 groups.Push((group, userId, connectionId));
-                return RemoveClientFromGroupAsync(group, userId, connectionId);
+                return RemoveUserFromGroupAsync(group, userId, connectionId);
             }
 
             return Task.CompletedTask;
@@ -86,9 +86,9 @@ public class HubController<TId> : IHubController<TId>
         return groups;
     }
 
-    public Task AddClientToGroupAsync(string group, TId clientId, string connectionId)
+    public Task AddUserToGroupAsync(string group, TId userId, string connectionId)
     {
-        var userGroups = _connectedUsers[clientId].Groups;
+        var userGroups = _connectedUsers[userId].Groups;
 
         if (!MultiGroupConnection && userGroups.Keys.Contains(group))
             throw new HubControllerException(
@@ -110,13 +110,13 @@ public class HubController<TId> : IHubController<TId>
         return Task.CompletedTask;
     }
 
-    public Task RemoveClientFromGroupAsync(string group, TId clientId, string connectionId)
+    public Task RemoveUserFromGroupAsync(string group, TId userId, string connectionId)
     {
-        if (!_connectedUsers.Keys.Contains(clientId))
+        if (!_connectedUsers.Keys.Contains(userId))
             return Task.CompletedTask; // ToDo: check out this
             
         _groups[group].Remove(connectionId);
-        var userGroups = _connectedUsers[clientId].Groups;
+        var userGroups = _connectedUsers[userId].Groups;
         userGroups[group].Remove(connectionId);
 
         if (!userGroups[group].Any())

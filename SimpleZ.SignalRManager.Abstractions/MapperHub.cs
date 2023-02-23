@@ -19,7 +19,7 @@ public abstract class MapperHub<TId> : Hub
     {
         return Task.WhenAll(
             Groups.AddToGroupAsync(Context.ConnectionId, group),
-            _hubController.AddClientToGroupAsync(group, GetUserId(), Context.ConnectionId)
+            _hubController.AddUserToGroupAsync(group, GetUserId(), Context.ConnectionId)
         );
     }
 
@@ -27,7 +27,7 @@ public abstract class MapperHub<TId> : Hub
     {
         return Task.WhenAll(
             Groups.RemoveFromGroupAsync(Context.ConnectionId, group),
-            _hubController.RemoveClientFromGroupAsync(group, GetUserId(), Context.ConnectionId)
+            _hubController.RemoveUserFromGroupAsync(group, GetUserId(), Context.ConnectionId)
         );
     }
 
@@ -35,22 +35,22 @@ public abstract class MapperHub<TId> : Hub
     {
         await base.OnConnectedAsync();
         TId id = GetUserId();
-        await _hubController.AddClientAsync(id, Context.ConnectionId, this.GetType());
+        await _hubController.AddUserAsync(id, Context.ConnectionId, this.GetType());
     }
 
     public override async Task OnDisconnectedAsync(Exception exception)
     {
         TId id = GetUserId();
-        await _hubController.RemoveClientAsync(id, Context.ConnectionId, this.GetType());
+        await _hubController.RemoveUserAsync(id, Context.ConnectionId, this.GetType());
         await base.OnDisconnectedAsync(exception);
     }
 
     protected Task AlertGroup(string group, string funcName, string text) =>
          Clients.Group(group).SendAsync(funcName, text);
 
-    protected TId GetUserId()
+    private TId GetUserId()
     {
-        return ((TId)Convert.ChangeType(Context.User.FindFirst(_hubController.IdClaimType)?.Value, typeof(TId)))
+        return ((TId)Convert.ChangeType(Context.User.FindFirst(_hubController.IdClaimType!)!.Value, typeof(TId)))
                ?? throw new Exception("Can not convert User Claim into User ID");
     }
 }
