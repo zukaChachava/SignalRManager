@@ -1,11 +1,12 @@
 ﻿using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using LocalConnectionTest.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 
-namespace LocalConnectionTest.Authentication;
+namespace RedisConnectionTest.Authentication;
 
 public class CustomAuthenticationHandler : AuthenticationHandler<CustomAuthenticationSchemeOptions>
 {
@@ -52,7 +53,7 @@ public class CustomAuthenticationHandler : AuthenticationHandler<CustomAuthentic
         
         return Task.FromResult(AuthenticateResult.Fail("Not valid"));
     }
-
+    
     private AuthenticationTicket GenerateTicket(string token)
     {
         var id = Convert.ToInt32(token);
