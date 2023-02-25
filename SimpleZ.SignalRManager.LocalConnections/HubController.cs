@@ -21,18 +21,15 @@ public sealed class HubController<TId> : IHubController<TId>
     public bool MultiHubConnection { get; internal set; }
 
     public bool MultiGroupConnection { get; internal set; }
+    public Task<ICollection<string>> GetGroupConnectionsAsync(string group) =>
+        Task.FromResult(_groups[group] as ICollection<string>);
 
-
-    public ICollection<string> this[string group] => _groups[group];
-
-    public IConnectedUser? this[TId id]
+    public Task<IConnectedUser?> GetConnectedUserAsync(TId userId)
     {
-        get
-        {
-            if (_connectedUsers.ContainsKey(id))
-                return _connectedUsers[id];
-            return null;
-        }
+        if (_connectedUsers.ContainsKey(userId))
+            return Task.FromResult<IConnectedUser>(_connectedUsers[userId])!;
+        
+        return Task.FromResult<IConnectedUser?>(default);
     }
 
     public int ActiveUsersCount => _connectedUsers.Count;

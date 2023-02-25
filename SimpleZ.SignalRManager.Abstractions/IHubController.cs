@@ -6,8 +6,9 @@ public interface IHubController<TId>
     bool MultiHubConnection { get;}
 
     bool MultiGroupConnection { get; }
-    ICollection<string> this[string group] { get; }
-    IConnectedUser? this[TId id] { get; }
+
+    Task<ICollection<string>> GetGroupConnectionsAsync(string group);
+    Task<IConnectedUser> GetConnectedUserAsync(TId userId);
     int ActiveUsersCount { get; }
     Task<bool> UserExistsAsync(TId id);
     Task<bool> GroupExistsAsync(string group);

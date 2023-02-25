@@ -8,6 +8,15 @@ using StackExchange.Redis;
 
 namespace SimpleZ.SignalRManager.RedisConnections;
 
+/*
+ * User Connections using two types of storage:
+ *  1. userId -> hash(connectionId, hubType)
+ *  2. userId -> hash(group, connectionIds) /connectionIds is just string seperated with "/" symbol.
+ *
+ * Groups consist using one type of storage:
+ *  1. group -> set(connectionId, connectionId, ...)
+ */
+
 [Authorize]
 public sealed class HubController<TId> : IHubController<TId>
 {
@@ -31,9 +40,35 @@ public sealed class HubController<TId> : IHubController<TId>
 
     public bool MultiGroupConnection { get; internal set; }
 
-    public ICollection<string> this[string group] => throw new NotImplementedException();
+    public async Task<ICollection<string>> GetGroupConnectionsAsync(string group)
+    {
+        var members = await _groupsDatabase.SetMembersAsync(group);
+        return members.Select(member => member.ToString()).ToArray();
+    }
 
-    public IConnectedUser? this[TId id] => throw new NotImplementedException();
+    public async Task<IConnectedUser> GetConnectedUserAsync(TId userId)
+    {
+        var userConnections =
+            await _usersDatabase.HashGetAllAsync(new RedisKey($"{ConnectedUser.ConnectionIdsPrefix}_{userId}"));
+        var userGroups = 
+            await _usersDatabase.HashGetAllAsync(new RedisKey($"{ConnectedUser.GroupsPrefix}_{userId}"));
+
+        var restoredUserConnections =
+            new ConcurrentDictionary<string, Type>(
+                userConnections.Select(connection =>
+                    new KeyValuePair<string, Type>(connection.Name.ToString(),
+                        _contextCache[connection.Value.ToString()])));
+
+        var restoredUserGroups = 
+            new ConcurrentDictionary<string, ConcurrentHashSet<string>>(
+                userGroups.Select(group => new KeyValuePair<string, ConcurrentHashSet<string>>(
+                    group.Name.ToString(),
+                    new ConcurrentHashSet<string>(group.Value.ToString().Split(Separator))
+                    ))
+                );
+
+        return new ConnectedUser() { ConnectionIds = restoredUserConnections, Groups = restoredUserGroups };
+    }
 
     public int ActiveUsersCount => _activeUsers;
 
@@ -147,8 +182,9 @@ public sealed class HubController<TId> : IHubController<TId>
 
         Interlocked.Add(ref _activeUsers, 1);
     }
-    
-    private async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveClientFromRedisAsync(TId userId,
+
+    private async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveClientFromRedisAsync(
+        TId userId,
         string connectionId, Type hubContext)
     {
         var connectionsHashData =
@@ -240,10 +276,11 @@ public sealed class HubController<TId> : IHubController<TId>
             await _usersDatabase
                 .HashSetAsync(
                     redisGroupKey,
-                    new HashEntry[] { new HashEntry(group, string.Join(Separator, userGroup.Value.ToString(), connectionId))}
+                    new HashEntry[]
+                        { new HashEntry(group, string.Join(Separator, userGroup.Value.ToString(), connectionId)) }
                 );
         }
-        
+
         await _groupsDatabase.SetAddAsync(new RedisKey(group), new RedisValue(connectionId));
     }
 
@@ -251,16 +288,18 @@ public sealed class HubController<TId> : IHubController<TId>
     {
         var hashKey = new RedisKey($"{ConnectedUser.GroupsPrefix}_{userId}");
         var userGroup = await _usersDatabase.HashGetAsync(hashKey, new RedisValue(group));
-        
-        if(userGroup.IsNullOrEmpty)
+
+        if (userGroup.IsNullOrEmpty)
             return;
 
         await _usersDatabase.HashDeleteAsync(hashKey, group);
 
-        var connectionIds = userGroup.ToString().Split(Separator).Where(connection => connection != connectionId).ToArray();
+        var connectionIds = userGroup.ToString().Split(Separator).Where(connection => connection != connectionId)
+            .ToArray();
 
         if (connectionIds.Any())
-            await _usersDatabase.HashSetAsync(hashKey, new HashEntry[]{new HashEntry(group, string.Join(Separator, connectionIds))});
+            await _usersDatabase.HashSetAsync(hashKey,
+                new HashEntry[] { new HashEntry(group, string.Join(Separator, connectionIds)) });
 
         await _groupsDatabase.SetRemoveAsync(new RedisKey(group), new RedisValue(connectionId));
     }

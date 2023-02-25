@@ -15,7 +15,7 @@ public abstract class MapperHub<TId> : Hub
 
     protected IHubController<TId> HubController => _hubController;
 
-    public Task AddToGroup(string group)
+    protected Task AddToGroupAsync(string group)
     {
         return Task.WhenAll(
             Groups.AddToGroupAsync(Context.ConnectionId, group),
@@ -23,7 +23,7 @@ public abstract class MapperHub<TId> : Hub
         );
     }
 
-    public Task RemoveFromGroup(string group)
+    protected Task RemoveFromGroupAsync(string group)
     {
         return Task.WhenAll(
             Groups.RemoveFromGroupAsync(Context.ConnectionId, group),
