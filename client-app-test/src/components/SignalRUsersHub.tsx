@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {createSignalRContext} from "react-signalr";
 import {Container, Typography} from "@mui/material";
+import Groups from "./Groups";
 
 const SignalRContext = createSignalRContext();
 const url = "https://localhost:7081/hub/users"
@@ -25,8 +26,11 @@ function SignalRUsersHub({connectionId}: SignalRUserHubProps) {
         >
             {
                 connectionOpened && (
-                    <Container>
+                    <Container sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                         <Typography color={"green"}>Connection Opened</Typography>
+                        <Container>
+                            <Groups context={SignalRContext} />
+                        </Container>
                     </Container>
                 )}
         </SignalRContext.Provider>

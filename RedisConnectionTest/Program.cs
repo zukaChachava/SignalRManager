@@ -43,6 +43,5 @@ app.UseAuthorization();
 
 app.MapGet("/", () => "Hello World!");
 app.MapHub<UserHub>("/hub/users");
-app.MapHub<TestHub>("/hub/test");
 
 app.Run();

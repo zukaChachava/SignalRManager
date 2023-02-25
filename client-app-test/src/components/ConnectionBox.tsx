@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Button, Container, TextField} from "@mui/material";
+import {Box, Button, Container, TextField} from "@mui/material";
 import {useForm} from "react-hook-form";
 import SignalRUsersHub from "./SignalRUsersHub";
 
@@ -20,11 +20,14 @@ function ConnectionBox() {
             disableGutters={true}
             sx={{width: '100%'}}
         >
-            <form onSubmit={handleSubmit(onSubmit)} style={{display: 'flex', justifyContent: 'start', alignItems: 'center', gap: '10px'}}>
-                <TextField type={"number"} {...register('id', {required: true})} />
-                <Button type={"submit"}>Connect</Button>
+            <Container sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                <form onSubmit={handleSubmit(onSubmit)} style={{display: 'flex', justifyContent: 'start', alignItems: 'center', gap: '10px'}}>
+                    <TextField type={"number"} {...register('id', {required: true})} />
+                    <Button type={"submit"}>Connect</Button>
+                </form>
+                <Box height={20}/>
                 <SignalRUsersHub connectionId={connectionId}/>
-            </form>
+            </Container>
         </Container>
     );
 }
