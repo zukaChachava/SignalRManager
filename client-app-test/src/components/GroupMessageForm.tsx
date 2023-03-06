@@ -20,7 +20,7 @@ function GroupMessageForm({context, groupName}: GroupMessageFormProps) {
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} style={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
+        <form onSubmit={handleSubmit(onSubmit)} style={{width: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
             <TextField label={'message'} {...register('message', {required: true})}/>
             <Button type={'submit'}>Send Message</Button>
         </form>

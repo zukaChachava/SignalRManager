@@ -44,20 +44,18 @@ function Groups({context}: GroupsProps) {
                     </form>
                 </Container>
                 <Box height={20}/>
-                <List>
+                <List sx={{width: '100%'}}>
                     {
                         groups.map((group, index) =>
-                            <ListItem key={index}>
-                                <ListItemText>
-                                    <Container sx={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
+                            <ListItem key={index} sx={{width: '100%'}}>
+                                    <Container sx={{width: '100%', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
                                         <Container>
                                             {group}
                                         </Container>
-                                        <Container>
+                                        <Container sx={{width: '100%'}}>
                                             <GroupMessageForm groupName={group} context={context} />
                                         </Container>
                                     </Container>
-                                </ListItemText>
                                 <ListItemButton sx={{color: 'red'}}>Leave</ListItemButton>
                             </ListItem>)
                     }
