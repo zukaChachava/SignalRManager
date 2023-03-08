@@ -16,4 +16,5 @@ public interface IHubController<TId>
     Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveUserAsync(TId userId, string connectionId, Type hubContext);
     Task AddUserToGroupAsync(string group, TId userId, string connectionId);
     Task RemoveUserFromGroupAsync(string group, TId userId, string connectionId);
+    Task ClearAllAsync();
 }

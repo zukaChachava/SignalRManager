@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using RedisConnectionTest.Models;
 using SimpleZ.SignalRManager.Abstractions;
 
 namespace RedisConnectionTest.Hubs;
@@ -15,21 +16,27 @@ public class UserHub : MapperHub<int>
     public Task LeaveGroup(string groupName) =>
         RemoveFromGroupAsync(groupName);
 
-    public async Task SendMessageToUser(int userId, string message)
+    public async ValueTask SendMessageToUser(string userId, string message)
     {
-        var connectedUser = await HubController.GetConnectedUserAsync(userId);
+        var connectedUser = await HubController.GetConnectedUserAsync(Int32.Parse(userId));
+        
+        // Message will be sent to all devices connected to this user
 
         if (connectedUser.ConnectionIds.Any())
-            await Task.WhenAll(connectedUser
-                .ConnectionIds
-                .Select(connections => Clients.User(connections.Key).SendAsync(message)));
+            await Clients.User(userId).SendAsync("SendMessageToUser", userId, $"Specific user: {message}");
+
+        // Or can be get specific connection and send a message directly to one device
+        
+        if (connectedUser.ConnectionIds.Any())
+            await Clients.Client(connectedUser.ConnectionIds.First().Key)
+                .SendAsync("SendMessageToUser", userId, $"Specific device: {message}");
     }
 
-    public async Task SendMessageToGroup(string groupName, string message)
+    public async ValueTask SendMessageToGroup(string groupName, string message)
     {
         var groupConnections = await HubController.GetGroupConnectionsAsync(groupName);
 
-        if (groupName.Any())
-            await Task.WhenAll(groupConnections.Select(connection => Clients.Group(groupName).SendAsync(message)));
+        if (groupConnections.Any())
+            await Clients.Group(groupName).SendAsync("SendMessageToGroup", $"Group -> {groupName}: {message}");
     }
 }

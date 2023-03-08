@@ -21,10 +21,14 @@ function App() {
   return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Container disableGutters={true} sx={{width: '100%'}}>
+        <Container disableGutters={true} sx={{width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
           <Button onClick={() => addConnection()}>Add new Connection</Button>
-          <List>
-            {connections.map(connection => <ConnectionBox key={connection} />)}
+          <List sx={{width: '100%', display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center'}}>
+            {connections.map(connection =>
+                <Container key={connection} sx={{margin: '10px 0', width: '100%'}}>
+                    <ConnectionBox/>
+                </Container>
+            )}
           </List>
         </Container>
       </ThemeProvider>

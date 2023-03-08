@@ -124,4 +124,11 @@ public sealed class HubController<TId> : IHubController<TId>
         
         return Task.CompletedTask;
     }
+
+    public Task ClearAllAsync()
+    {
+        _connectedUsers.Clear();
+        _groups.Clear();
+        return Task.CompletedTask;
+    }
 }

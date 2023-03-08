@@ -13,7 +13,7 @@ namespace SimpleZ.SignalRManager.RedisConnections;
  *  1. userId -> hash(connectionId, hubType)
  *  2. userId -> hash(group, connectionIds) /connectionIds is just string seperated with "/" symbol.
  *
- * Groups consist using one type of storage:
+ * Groups using one type of storage:
  *  1. group -> set(connectionId, connectionId, ...)
  */
 
@@ -97,7 +97,7 @@ public sealed class HubController<TId> : IHubController<TId>
         try
         {
             await _semaphoreSlim.WaitAsync();
-            return await RemoveClientFromRedisAsync(userId, connectionId, hubContext);
+            return await RemoveUserFromRedisAsync(userId, connectionId, hubContext);
         }
         finally
         {
@@ -129,6 +129,11 @@ public sealed class HubController<TId> : IHubController<TId>
         {
             _semaphoreSlim.Release();
         }
+    }
+
+    public Task ClearAllAsync()
+    {
+        return Task.WhenAll(_usersDatabase.ExecuteAsync("flushall"), _groupsDatabase.ExecuteAsync("flushall"));
     }
 
     private async Task<bool> ContextEqualsAsync(TId userId, string context)
@@ -183,7 +188,7 @@ public sealed class HubController<TId> : IHubController<TId>
         Interlocked.Add(ref _activeUsers, 1);
     }
 
-    private async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveClientFromRedisAsync(
+    private async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveUserFromRedisAsync(
         TId userId,
         string connectionId, Type hubContext)
     {
@@ -191,8 +196,6 @@ public sealed class HubController<TId> : IHubController<TId>
             await _usersDatabase.HashGetAllAsync(new RedisKey($"{ConnectedUser.ConnectionIdsPrefix}_{userId}"));
         var userGroupsHashData =
             await _usersDatabase.HashGetAllAsync(new RedisKey($"{ConnectedUser.GroupsPrefix}_{userId}"));
-
-        var groups = new ConcurrentStack<(string group, TId userId, string connectionId)>();
 
         IConnectedUser user = new ConnectedUser()
         {
@@ -205,20 +208,13 @@ public sealed class HubController<TId> : IHubController<TId>
                     new ConcurrentHashSet<string>(data.Value.ToString().Split('/')))))
         };
 
+        var connectedGroups = user
+            .Groups
+            .Where(group => group.Value.Contains(connectionId))
+            .ToArray();
 
-        await Task.WhenAll(user.Groups.Keys.Select(group => Task.Run(async () => // ToDo: check out this
-        {
-            if (await _groupsDatabase.KeyExistsAsync(group) && (await _groupsDatabase.StringGetAsync(group))
-                .ToString()
-                .Split('/').Contains(connectionId))
-            {
-                groups.Push((group, userId, connectionId));
-                return RemoveUserFromGroupAsync(group, userId, connectionId);
-            }
-
-            return Task.CompletedTask;
-        })));
-
+        await Task.WhenAll(connectedGroups.Select(group => 
+            RemoveUserFromRedisGroupAsync(group.Key, userId, connectionId, new RedisValue(string.Join(Separator, group.Value)))));
         user.ConnectionIds.Remove(connectionId);
 
         await Task.WhenAll(
@@ -228,21 +224,12 @@ public sealed class HubController<TId> : IHubController<TId>
 
         if (user.ConnectionIds.Any())
         {
-            await Task.WhenAll(
-                _usersDatabase.HashSetAsync(
-                    new RedisKey($"{ConnectedUser.ConnectionIdsPrefix}_{userId}"),
-                    user.ConnectionIds.Select(connection => new HashEntry(
-                        new RedisValue(connection.Key),
-                        new RedisValue(connection.Value.ToString())
-                    )).ToArray()
-                ),
-                _usersDatabase.HashSetAsync(
-                    new RedisKey($"{ConnectedUser.GroupsPrefix}_{userId}"),
-                    user.Groups.Select(group => new HashEntry(
-                        new RedisValue(group.Key),
-                        new RedisValue(string.Join('/', group.Value))
-                    )).ToArray()
-                )
+           await _usersDatabase.HashSetAsync(
+                new RedisKey($"{ConnectedUser.ConnectionIdsPrefix}_{userId}"),
+                user.ConnectionIds.Select(connection => new HashEntry(
+                    new RedisValue(connection.Key),
+                    new RedisValue(connection.Value.ToString())
+                )).ToArray()
             );
         }
         else
@@ -250,12 +237,12 @@ public sealed class HubController<TId> : IHubController<TId>
             Interlocked.Add(ref _activeUsers, -1);
         }
 
-        return groups;
+        return connectedGroups.Select(group => (group.Key, userId, connectionId));
     }
 
     private async Task AddUserToRedisGroupAsync(string group, TId userId, string connectionId)
     {
-        var redisGroupKey = new RedisKey($"{ConnectedUser.GroupsPrefix}_${userId}");
+        var redisGroupKey = new RedisKey($"{ConnectedUser.GroupsPrefix}_{userId}");
         var userGroups = await _usersDatabase.HashGetAllAsync(redisGroupKey);
 
         if (!userGroups.Any())
@@ -284,10 +271,10 @@ public sealed class HubController<TId> : IHubController<TId>
         await _groupsDatabase.SetAddAsync(new RedisKey(group), new RedisValue(connectionId));
     }
 
-    private async Task RemoveUserFromRedisGroupAsync(string group, TId userId, string connectionId)
+    private async Task RemoveUserFromRedisGroupAsync(string group, TId userId, string connectionId, RedisValue? groupConnections = null)
     {
         var hashKey = new RedisKey($"{ConnectedUser.GroupsPrefix}_{userId}");
-        var userGroup = await _usersDatabase.HashGetAsync(hashKey, new RedisValue(group));
+        var userGroup = groupConnections ?? await _usersDatabase.HashGetAsync(hashKey, new RedisValue(connectionId));
 
         if (userGroup.IsNullOrEmpty)
             return;

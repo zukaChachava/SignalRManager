@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using SimpleZ.SignalRManager.Abstractions;
 using SimpleZ.SignalRManager.RedisConnections.Builder;
 
@@ -12,11 +14,17 @@ public static class ServiceCollectionExtensions
         Action<IHubBuilder<TId>> config
         )
     {
+        string claimType = ClaimTypes.SerialNumber;
+        
         serviceCollection.AddSingleton<IHubController<TId>, HubController<TId>>(provider =>
         {
             HubBuilder<TId> builder = new HubBuilder<TId>(connectionString);
             config(builder);
-            return (builder.Build() as HubController<TId>)!;
+            var controller = (builder.Build() as HubController<TId>)!;
+            claimType = controller.IdClaimType!;
+            return controller;
         });
+
+        serviceCollection.AddSingleton<IUserIdProvider, ClaimProvider>(provider => new ClaimProvider(claimType));
     }
 }
