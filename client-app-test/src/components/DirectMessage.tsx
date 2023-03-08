@@ -19,7 +19,7 @@ function DirectMessage({context}: DirectMessageProps) {
     context.useSignalREffect('SendMessageToUser', (userId: string, message: string) => {
         console.log('here')
         setMessages(previous => [...previous, message])
-    }, []);
+    }, [messages]);
 
     const onSubmit = (message: MessageForm) => {
         console.log(message)

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using LocalConnectionTest.Authentication;
 using RedisConnectionTest.Authentication;
 using RedisConnectionTest.Hubs;
+using SimpleZ.SignalRManager.Abstractions;
 using SimpleZ.SignalRManager.RedisConnections.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,5 +44,7 @@ app.UseAuthorization();
 
 app.MapGet("/", () => "Hello World!");
 app.MapHub<UserHub>("/hub/users");
+
+await app.Services.GetService<IHubController<int>>()!.ClearAllAsync(); // This clears redis databases. not required.
 
 app.Run();

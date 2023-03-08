@@ -11,7 +11,7 @@ function Inbox({context}: InboxProps) {
 
     context.useSignalREffect('SendMessageToGroup', (message: string) => {
         setMessages(previous => [...previous, message])
-    }, []);
+    }, [messages]);
 
     return (
         <Card  sx={{width: '100%', height: '100%', overflowY: 'auto'}}>

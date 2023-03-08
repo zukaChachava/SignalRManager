@@ -131,6 +131,11 @@ public sealed class HubController<TId> : IHubController<TId>
         }
     }
 
+    public Task ClearAllAsync()
+    {
+        return Task.WhenAll(_usersDatabase.ExecuteAsync("flushall"), _groupsDatabase.ExecuteAsync("flushall"));
+    }
+
     private async Task<bool> ContextEqualsAsync(TId userId, string context)
     {
         var contexts = await _usersDatabase.HashValuesAsync($"{ConnectedUser.ConnectionIdsPrefix}_{userId}");

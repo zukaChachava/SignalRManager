@@ -19,10 +19,17 @@ public class UserHub : MapperHub<int>
     public async ValueTask SendMessageToUser(string userId, string message)
     {
         var connectedUser = await HubController.GetConnectedUserAsync(Int32.Parse(userId));
+        
+        // Message will be sent to all devices connected to this user
 
         if (connectedUser.ConnectionIds.Any())
-            await Clients.Users(connectedUser.ConnectionIds.Select(connectionData => connectionData.Key).ToArray())
-                .SendAsync("SendMessageToUser", userId, message);
+            await Clients.User(userId).SendAsync("SendMessageToUser", userId, $"Specific user: {message}");
+
+        // Or can be get specific connection and send a message directly to one device
+        
+        if (connectedUser.ConnectionIds.Any())
+            await Clients.Client(connectedUser.ConnectionIds.First().Key)
+                .SendAsync("SendMessageToUser", userId, $"Specific device: {message}");
     }
 
     public async ValueTask SendMessageToGroup(string groupName, string message)
