@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace SimpleZ.SignalRManager.Abstractions;
 
 [Authorize]
-public abstract class MapperHub<TId> : Hub
+public abstract class MapperHub<TId> : Hub where TId : notnull
 {
     private readonly IHubController<TId> _hubController;
 

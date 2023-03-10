@@ -1,48 +1,131 @@
 ﻿using System.Collections.Concurrent;
 using Axion.Collections.Concurrent;
+using Nito.AsyncEx;
 using SimpleZ.SignalRManager.Abstractions;
 using SimpleZ.SignalRManager.Abstractions.Exceptions;
 using SimpleZ.SignalRManager.LocalConnections.Models;
 
 namespace SimpleZ.SignalRManager.LocalConnections;
 
-public sealed class HubController<TId> : IHubController<TId>
+public sealed class HubController<TId> : IHubController<TId> where TId : notnull
 {
     private readonly IDictionary<TId, IConnectedUser> _connectedUsers;
     private readonly IDictionary<string, ConcurrentHashSet<string>> _groups;
+    private readonly AsyncReaderWriterLock _readerWriterLock; 
 
     internal HubController()
     {
         _connectedUsers = new ConcurrentDictionary<TId, IConnectedUser>();
         _groups = new ConcurrentDictionary<string, ConcurrentHashSet<string>>();
+        _readerWriterLock = new AsyncReaderWriterLock();
     }
 
     public string? IdClaimType { get; internal set; }
     public bool MultiHubConnection { get; internal set; }
 
     public bool MultiGroupConnection { get; internal set; }
-    public Task<ICollection<string>> GetGroupConnectionsAsync(string group) =>
-        Task.FromResult(_groups[group] as ICollection<string>);
 
-    public Task<IConnectedUser?> GetConnectedUserAsync(TId userId)
+    #region Public
+
+    public async Task<ICollection<string>> GetGroupConnectionsAsync(string group)
     {
-        if (_connectedUsers.ContainsKey(userId))
-            return Task.FromResult<IConnectedUser>(_connectedUsers[userId])!;
-        
-        return Task.FromResult<IConnectedUser?>(default);
+        using (await _readerWriterLock.ReaderLockAsync())
+        {
+            return await GetGroupConnectionsFromCacheAsync(group);
+        }
+    }
+
+    public async Task<IConnectedUser?> GetConnectedUserAsync(TId userId)
+    {
+        using (await _readerWriterLock.ReaderLockAsync())
+        {
+            return await GetConnectedUserFromCacheAsync(userId);
+        }
     }
 
     public int ActiveUsersCount => _connectedUsers.Count;
 
     public string? GetClientIdClaim => IdClaimType;
 
-    public Task<bool> UserExistsAsync(TId id) => Task.FromResult(_connectedUsers.ContainsKey(id));
+    public async Task<bool> UserExistsAsync(TId id)
+    {
+        using (await _readerWriterLock.ReaderLockAsync())
+        {
+            return await UserExistsInCacheAsync(id);
+        }
+    }
 
-    public Task<bool> GroupExistsAsync(string group) => Task.FromResult(_groups.ContainsKey(group));
+    public async Task<bool> GroupExistsAsync(string group)
+    {
+        using (await _readerWriterLock.ReaderLockAsync())
+        {
+            return await GroupExistsInCacheAsync(group);
+        }
+    }
 
     public async Task AddUserAsync(TId userId, string connectionId, Type hubContext)
     {
-        if (await UserExistsAsync(userId))
+        using (await _readerWriterLock.ReaderLockAsync())
+        {
+            await AddUserInCacheAsync(userId, connectionId, hubContext);
+        }
+    }
+
+    public async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveUserAsync(TId userId,
+        string connectionId, Type hubContext)
+    {
+        using (await _readerWriterLock.ReaderLockAsync())
+        {
+            return await RemoveUserFromCacheAsync(userId, connectionId, hubContext);
+        }
+    }
+
+    public async Task AddUserToGroupAsync(string group, TId userId, string connectionId)
+    {
+        using (await _readerWriterLock.WriterLockAsync())
+        {
+            await AddUserToGroupCacheAsync(group, userId, connectionId);
+        }
+    }
+
+    public async Task RemoveUserFromGroupAsync(string group, TId userId, string connectionId)
+    {
+        using (await _readerWriterLock.WriterLockAsync())
+        {
+            await RemoveUserFromGroupCacheAsync(group, userId, connectionId);
+        }
+    }
+
+    public async Task ClearAllAsync()
+    {
+        using (await _readerWriterLock.WriterLockAsync())
+        {
+            await ClearAllCacheAsync();
+        }
+    }
+
+    #endregion
+
+    #region Private
+
+    private Task<ICollection<string>> GetGroupConnectionsFromCacheAsync(string group) =>
+        Task.FromResult(_groups[group] as ICollection<string>);
+    
+    private Task<IConnectedUser?> GetConnectedUserFromCacheAsync(TId userId)
+    {
+        if (_connectedUsers.ContainsKey(userId))
+            return Task.FromResult<IConnectedUser>(_connectedUsers[userId])!;
+        
+        return Task.FromResult<IConnectedUser?>(default);
+    }
+    
+    private Task<bool> UserExistsInCacheAsync(TId id) => Task.FromResult(_connectedUsers.ContainsKey(id));
+
+    private Task<bool> GroupExistsInCacheAsync(string group) => Task.FromResult(_groups.ContainsKey(group));
+    
+    private async Task AddUserInCacheAsync(TId userId, string connectionId, Type hubContext)
+    {
+        if (await UserExistsInCacheAsync(userId))
         {
             if (!MultiHubConnection &&
                 _connectedUsers[userId].ConnectionIds.Values.Contains(hubContext))
@@ -57,8 +140,8 @@ public sealed class HubController<TId> : IHubController<TId>
         user.ConnectionIds.TryAdd(connectionId, hubContext);
         _connectedUsers.TryAdd(userId, user);
     }
-
-    public async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveUserAsync(TId userId,
+    
+    private async Task<IEnumerable<(string group, TId userId, string connectionId)>> RemoveUserFromCacheAsync(TId userId,
         string connectionId, Type hubContext)
     {
         IConnectedUser user = _connectedUsers[userId];
@@ -82,8 +165,8 @@ public sealed class HubController<TId> : IHubController<TId>
 
         return groups;
     }
-
-    public Task AddUserToGroupAsync(string group, TId userId, string connectionId)
+    
+    private Task AddUserToGroupCacheAsync(string group, TId userId, string connectionId)
     {
         var userGroups = _connectedUsers[userId].Groups;
 
@@ -106,8 +189,8 @@ public sealed class HubController<TId> : IHubController<TId>
         userGroups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
         return Task.CompletedTask;
     }
-
-    public Task RemoveUserFromGroupAsync(string group, TId userId, string connectionId)
+    
+    private Task RemoveUserFromGroupCacheAsync(string group, TId userId, string connectionId)
     {
         if (!_connectedUsers.Keys.Contains(userId))
             return Task.CompletedTask; // ToDo: check out this
@@ -124,11 +207,14 @@ public sealed class HubController<TId> : IHubController<TId>
         
         return Task.CompletedTask;
     }
-
-    public Task ClearAllAsync()
+    
+    private Task ClearAllCacheAsync()
     {
         _connectedUsers.Clear();
         _groups.Clear();
         return Task.CompletedTask;
     }
+
+    #endregion
+    
 }
