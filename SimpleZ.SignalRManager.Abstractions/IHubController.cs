@@ -1,6 +1,6 @@
 ﻿namespace SimpleZ.SignalRManager.Abstractions;
 
-public interface IHubController<TId>
+public interface IHubController<TId> where TId : notnull
 {
     string? IdClaimType { get;}
     bool MultiHubConnection { get;}
@@ -8,7 +8,7 @@ public interface IHubController<TId>
     bool MultiGroupConnection { get; }
 
     Task<ICollection<string>> GetGroupConnectionsAsync(string group);
-    Task<IConnectedUser> GetConnectedUserAsync(TId userId);
+    Task<IConnectedUser?> GetConnectedUserAsync(TId userId);
     int ActiveUsersCount { get; }
     Task<bool> UserExistsAsync(TId id);
     Task<bool> GroupExistsAsync(string group);
