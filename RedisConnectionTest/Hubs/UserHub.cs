@@ -16,9 +16,12 @@ public class UserHub : MapperHub<int>
     public Task LeaveGroup(string groupName) =>
         RemoveFromGroupAsync(groupName);
 
-    public async ValueTask SendMessageToUser(string userId, string message)
+    public async Task SendMessageToUser(string userId, string message)
     {
         var connectedUser = await HubController.GetConnectedUserAsync(Int32.Parse(userId));
+        
+        if(connectedUser == null)
+            return;
         
         // Message will be sent to all devices connected to this user
 
@@ -32,7 +35,7 @@ public class UserHub : MapperHub<int>
                 .SendAsync("SendMessageToUser", userId, $"Specific device: {message}");
     }
 
-    public async ValueTask SendMessageToGroup(string groupName, string message)
+    public async Task SendMessageToGroup(string groupName, string message)
     {
         var groupConnections = await HubController.GetGroupConnectionsAsync(groupName);
 
