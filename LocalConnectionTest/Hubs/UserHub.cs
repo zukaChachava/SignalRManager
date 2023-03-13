@@ -12,6 +12,12 @@ public class UserHub : MapperHub<int>
         
     }
     
+    public Task JoinGroup(string groupName) =>
+        AddToGroupAsync(groupName);
+
+    public Task LeaveGroup(string groupName) =>
+        RemoveFromGroupAsync(groupName);
+    
     public async Task SendMessageToUser(string userId, string message)
     {
         var connectedUser = await HubController.GetConnectedUserAsync(Int32.Parse(userId));
