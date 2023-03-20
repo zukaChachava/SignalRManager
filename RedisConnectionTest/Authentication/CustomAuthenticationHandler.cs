@@ -10,8 +10,6 @@ namespace RedisConnectionTest.Authentication;
 
 public class CustomAuthenticationHandler : AuthenticationHandler<CustomAuthenticationSchemeOptions>
 {
-    private readonly IOptionsMonitor<CustomAuthenticationSchemeOptions> _options;
-
     public CustomAuthenticationHandler(
         IOptionsMonitor<CustomAuthenticationSchemeOptions> options, 
         ILoggerFactory logger, UrlEncoder encoder, 
@@ -19,19 +17,18 @@ public class CustomAuthenticationHandler : AuthenticationHandler<CustomAuthentic
         ) 
         : base(options, logger, encoder, clock)
     {
-        _options = options;
     }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (AuthenticationHeaderValue.TryParse(Request.Headers["Authorization"], out AuthenticationHeaderValue headerValue))
+        if (AuthenticationHeaderValue.TryParse(Request.Headers["Authorization"], out AuthenticationHeaderValue? headerValue))
         {
             try
             {
                 var ticket = GenerateTicket(headerValue.Parameter!);
                 return Task.FromResult(AuthenticateResult.Success(ticket));
             }
-            catch (Exception ex)
+            catch
             {
                 return Task.FromResult(AuthenticateResult.Fail("Not valid"));
             }
@@ -42,10 +39,10 @@ public class CustomAuthenticationHandler : AuthenticationHandler<CustomAuthentic
             try
             {
                 var token = Request.Query["access_token"];
-                var ticket = GenerateTicket(token);
+                var ticket = GenerateTicket(token!);
                 return Task.FromResult(AuthenticateResult.Success(ticket));
             }
-            catch (Exception ex)
+            catch
             {
                 return Task.FromResult(AuthenticateResult.Fail("Not valid"));
             }
@@ -57,7 +54,7 @@ public class CustomAuthenticationHandler : AuthenticationHandler<CustomAuthentic
     private AuthenticationTicket GenerateTicket(string token)
     {
         var id = Convert.ToInt32(token);
-        var claims = new Claim[] { new Claim(ClaimTypes.SerialNumber, id.ToString()) };
+        var claims = new [] { new Claim(ClaimTypes.SerialNumber, id.ToString()) };
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
         return new AuthenticationTicket(principal, Scheme.Name);
