@@ -12,7 +12,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollection serviceCollection, 
         string connectionString,
         Action<IHubBuilder<TId>> config
-        )
+        ) where TId : notnull
     {
         string claimType = ClaimTypes.SerialNumber;
         

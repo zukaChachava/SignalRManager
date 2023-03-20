@@ -9,7 +9,7 @@ namespace SimpleZ.SignalRManager.LocalConnections.Extensions;
 public static class ServiceCollectionExtensions
 {
     public static void AddHubController<TId>(this IServiceCollection serviceCollection, 
-        Action<IHubBuilder<TId>> config)
+        Action<IHubBuilder<TId>> config) where TId : notnull
     {
         string claimType = ClaimTypes.SerialNumber;
         

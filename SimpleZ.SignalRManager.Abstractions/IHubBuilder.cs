@@ -1,6 +1,6 @@
 ﻿namespace SimpleZ.SignalRManager.Abstractions;
 
-public interface IHubBuilder<T>
+public interface IHubBuilder<T> where T : notnull
 {
     IHubBuilder<T> DefineClaimType(string claim);
     IHubBuilder<T> AllowedMultiHubConnection(bool allowed);

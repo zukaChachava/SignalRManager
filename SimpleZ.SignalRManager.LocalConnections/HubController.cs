@@ -114,7 +114,7 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
     private Task<IConnectedUser?> GetConnectedUserFromCacheAsync(TId userId)
     {
         if (_connectedUsers.ContainsKey(userId))
-            return Task.FromResult<IConnectedUser>(_connectedUsers[userId])!;
+            return Task.FromResult(_connectedUsers[userId])!;
         
         return Task.FromResult<IConnectedUser?>(default);
     }
@@ -128,11 +128,11 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
         if (await UserExistsInCacheAsync(userId))
         {
             if (!MultiHubConnection &&
-                _connectedUsers[userId].ConnectionIds.Values.Contains(hubContext))
+                _connectedUsers[userId].ConnectionIds!.Values.Contains(hubContext))
                 throw new HubControllerException("User already joined. new connection is not allowed");
 
             IConnectedUser existingUser = _connectedUsers[userId];
-            existingUser.ConnectionIds.TryAdd(connectionId, hubContext);
+            existingUser.ConnectionIds!.TryAdd(connectionId, hubContext);
             return;
         }
 
@@ -147,7 +147,7 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
         IConnectedUser user = _connectedUsers[userId];
         var groups = new ConcurrentStack<(string group, TId userId, string connectionId)>();
 
-        await Task.WhenAll(user.Groups.Keys.Select(group => Task.Run(() => // ToDo: check out this
+        await Task.WhenAll(user.Groups!.Keys.Select(group => Task.Run(() => // ToDo: check out this
         {
             if (_groups.TryGetValue(group, out var connections) && connections.Contains(connectionId))
             {
@@ -158,7 +158,7 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
             return Task.CompletedTask;
         })));
 
-        user.ConnectionIds.Remove(connectionId); // Deleting connection in UserModel
+        user.ConnectionIds!.Remove(connectionId); // Deleting connection in UserModel
 
         if (!user.ConnectionIds.Any())
             _connectedUsers.Remove(userId); // Deleting connection globally
@@ -170,14 +170,14 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
     {
         var userGroups = _connectedUsers[userId].Groups;
 
-        if (!MultiGroupConnection && userGroups.Keys.Contains(group))
+        if (!MultiGroupConnection && userGroups!.Keys.Contains(group))
             throw new HubControllerException(
                 "This user already joined this group, several connections is not permitted");
 
         if (_groups.Keys.Contains(group))
         {
             _groups[group].Add(connectionId);
-            if (userGroups.Keys.Contains(group))
+            if (userGroups!.Keys.Contains(group))
                 userGroups[group].TryAdd(connectionId, out _);
             else
                 userGroups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
@@ -186,7 +186,7 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
         }
 
         _groups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
-        userGroups.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
+        userGroups!.TryAdd(group, new ConcurrentHashSet<string>() { connectionId });
         return Task.CompletedTask;
     }
     
@@ -197,7 +197,7 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
             
         _groups[group].Remove(connectionId);
         var userGroups = _connectedUsers[userId].Groups;
-        userGroups[group].Remove(connectionId);
+        userGroups![group].Remove(connectionId);
 
         if (!userGroups[group].Any())
             userGroups.Remove(group);

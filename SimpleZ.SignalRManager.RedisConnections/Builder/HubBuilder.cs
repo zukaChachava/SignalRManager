@@ -4,7 +4,7 @@ using StackExchange.Redis;
 
 namespace SimpleZ.SignalRManager.RedisConnections.Builder;
 
-public sealed class HubBuilder<TId> : IHubBuilder<TId>
+public sealed class HubBuilder<TId> : IHubBuilder<TId> where TId : notnull
 {
     private readonly HubController<TId> _hubController;
 

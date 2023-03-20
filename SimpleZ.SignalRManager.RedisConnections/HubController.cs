@@ -51,7 +51,7 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
         }
     }
 
-    public async Task<IConnectedUser> GetConnectedUserAsync(TId userId)
+    public async Task<IConnectedUser?> GetConnectedUserAsync(TId userId)
     {
         using (await _readerWriterLock.ReaderLockAsync())
         {
@@ -187,19 +187,19 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
             Groups = new ConcurrentDictionary<string, ConcurrentHashSet<string>>()
         };
 
-        user.ConnectionIds.TryAdd(connectionId, hubContext);
+        user.ConnectionIds!.TryAdd(connectionId, hubContext);
 
         await Task.WhenAll(
             _usersDatabase.HashSetAsync(
                 new RedisKey($"{ConnectedUser.ConnectionIdsPrefix}_{userId}"),
-                user.ConnectionIds.Select(connection => new HashEntry(
+                user.ConnectionIds!.Select(connection => new HashEntry(
                     new RedisValue(connection.Key),
                     new RedisValue(connection.Value.ToString())
                 )).ToArray()
             ),
             _usersDatabase.HashSetAsync(
                 new RedisKey($"{ConnectedUser.GroupsPrefix}_{userId}"),
-                user.Groups.Select(group => new HashEntry(
+                user.Groups!.Select(group => new HashEntry(
                     new RedisValue(group.Key),
                     new RedisValue(string.Join(Separator, group.Value))
                 )).ToArray()
@@ -233,13 +233,13 @@ public sealed class HubController<TId> : IHubController<TId> where TId : notnull
         };
 
         var connectedGroups = user
-            .Groups
+            .Groups!
             .Where(group => group.Value.Contains(connectionId))
             .ToArray();
 
         await Task.WhenAll(connectedGroups.Select(group => 
             RemoveUserFromRedisGroupAsync(group.Key, userId, connectionId, new RedisValue(string.Join(Separator, group.Value)))));
-        user.ConnectionIds.Remove(connectionId);
+        user.ConnectionIds!.Remove(connectionId);
 
         await Task.WhenAll(
             _usersDatabase.KeyDeleteAsync($"{ConnectedUser.ConnectionIdsPrefix}_{userId}"),

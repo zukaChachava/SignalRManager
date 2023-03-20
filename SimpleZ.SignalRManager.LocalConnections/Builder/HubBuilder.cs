@@ -3,7 +3,7 @@ using SimpleZ.SignalRManager.Abstractions;
 
 namespace SimpleZ.SignalRManager.LocalConnections.Builder;
 
-public sealed class HubBuilder<TId> : IHubBuilder<TId>
+public sealed class HubBuilder<TId> : IHubBuilder<TId> where TId : notnull
 {
     private readonly HubController<TId> _hubController;
 
