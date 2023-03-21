@@ -12,6 +12,11 @@ There are two approaches to track connections.
 
 ### Local Cache
 
+Installation:
+```bash
+dotnet add package SimpleZ.SignalRManager.LocalConnections
+```
+
 To use local cache only **AddHubController** Extension should be called.
 
 ```csharp
@@ -93,7 +98,12 @@ public class UserHub : MapperHub<int>
 
 ### Redis Cache
 
-Another way to track Hub connections is redis. 
+Another way to track Hub connections is redis.
+
+Installation:
+```bash
+dotnet add package SimpleZ.SignalRManager.RedisConnections
+```
 
 For this following configuration should be used:
 
